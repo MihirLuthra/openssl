@@ -7,6 +7,50 @@
  * https://www.openssl.org/source/license.html
  */
 
+// on solaris 10, enabling optimisations on this file produce a `stpcpy` symbol:
+//
+// ```
+// -bash-3.2$ pvs -s <any_lib_using_openssl.so>
+// --snip--
+//        libc.so.1 (SUNW_0.9):
+//                bcmp;
+//                getpagesize;
+//        libc.so.1 (SUNW_1.23):
+//                stpcpy;                     <-------- here
+//        libc.so.1 (SUNWprivate_1.1):
+//                __assert_c99;
+// --snip--
+// ```
+//
+// which depends on SUNW_1.23.
+// SUNW_1.23 is available on solaris 10 but libgcc_s.so.1 doesn't use that.
+//
+// On a solaris 10 machine with gcc4.4.2
+// ```
+// -bash-3.2$ pvs libgcc_s.so.1
+//        libc.so.1 (SUNW_1.1);
+//        libgcc_s.so.1;
+//        GCC_3.0;
+//        GCC_3.3;
+//        GCC_3.3.1;
+//        GCC_3.4;
+//        GCC_3.4.2;
+//        GCC_3.4.4;
+//        GCC_4.0.0;
+//        GCC_4.2.0;
+//        GCC_4.3.0;
+// ```
+//
+// The libc being used has `SUNW_1.1`.
+//
+// As for what I see, at least gcc7 is required to use SUNW_1.23 which is
+// why this works on solaris 11 having gcc7.
+//
+// The above points are just notes of what I found with a limited knowledge of
+// solaris.
+#pragma GCC push_options
+#pragma GCC optimize ("O0")
+
 /* We need to use some engine deprecated APIs */
 #define OPENSSL_SUPPRESS_DEPRECATED
 
@@ -325,3 +369,5 @@ int ENGINE_ctrl_cmd_string(ENGINE *e, const char *cmd_name, const char *arg,
         return 1;
     return 0;
 }
+
+#pragma GCC pop_options
